@@ -1,0 +1,12 @@
+[Unit]
+Description=WS Proxy
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=usr/share/app/wsproxy
+ExecStart=/usr/bin/dotnet /usr/share/app/wsproxy/server.dll --urls http://0.0.0.0:8001
+KillSignal=SIGINT
+Environment=ASPNETCORE_ENVIRONMENT=Production
+User=nobody
+Group=nobody

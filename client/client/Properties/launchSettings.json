@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "client": {
+      "commandName": "Project",
+      "commandLineArgs": "8105 ws://127.0.0.1:8100/ws"
+    }
+  }
+}
