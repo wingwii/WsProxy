@@ -15,7 +15,7 @@ namespace client
         private string _dstHost = string.Empty;
         private int _dstPort = 0;
         private Socket _sock = null;
-        ClientWebSocket _ws = null;
+        private ClientWebSocket _ws = null;
 
         public ProxyConnector(string wsEndPoint)
         {
@@ -47,11 +47,18 @@ namespace client
 
         public void Close()
         {
-            if (this._sock != null)
+            try
             {
-                try { this._sock.Close(); }
-                catch (Exception) { }
+                if (this._sock != null)
+                {
+                    this._sock.Close();
+                }
+                else
+                {
+                    _ = this._ws.CloseAsync(WebSocketCloseStatus.Empty, string.Empty, CancellationToken.None);
+                }
             }
+            catch (Exception) { }
         }
 
         public async Task Connect(string dstHost, int dstPort)
@@ -59,7 +66,7 @@ namespace client
             this._dstHost = dstHost;
             this._dstPort = dstPort;
 
-            if (string.IsNullOrEmpty(this._wsEndPoint)) 
+            if (string.IsNullOrEmpty(this._wsEndPoint))
             {
                 this._sock = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
                 await this._sock.ConnectAsync(dstHost, dstPort);
