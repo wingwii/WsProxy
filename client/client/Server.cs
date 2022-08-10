@@ -10,6 +10,7 @@ namespace client
     class Server
     {
         private string _wsEndPoint = string.Empty;
+        private string _fwdEndPoint = null;
 
         public Server()
         {
@@ -38,6 +39,12 @@ namespace client
             }
         }
 
+        public string ForwarderEndPoint
+        {
+            get { return this._fwdEndPoint; }
+            set { this._fwdEndPoint = value; }
+        }
+
         public void Run()
         {
             var task = this.RunAsync();
@@ -61,7 +68,7 @@ namespace client
         {
             try
             {
-                var handler = new ServerHandler(sock, this._wsEndPoint);
+                var handler = new ServerHandler(sock, this._wsEndPoint, this._fwdEndPoint);
                 await handler.Run();
             }
             catch (Exception err) 

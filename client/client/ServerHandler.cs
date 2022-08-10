@@ -11,6 +11,7 @@ namespace client
     {
         private Socket _sock = null;
         private string _wsEndPoint = string.Empty;
+        private string _fwdEndPoint = null;
         private byte[] _tmpBuf = null;
         private byte[] _firstSendBuf = null;
         private BufferReader _bufRdr = new BufferReader();
@@ -21,15 +22,17 @@ namespace client
         private int _dstPort = 0;
         private ProxyConnector _dstConn = null;
 
-        public ServerHandler(Socket sock, string wsEndPoint)
+        public ServerHandler(Socket sock, string wsEndPoint, string fwdEndPoint)
         {
             this._sock = sock;
             this._wsEndPoint = wsEndPoint;
+            this._fwdEndPoint = fwdEndPoint;
         }
 
         public enum ProxyModeEnum
         {
             None = 0,
+            PortForward,
             Http,
             Https,
             Socks5,
@@ -43,27 +46,26 @@ namespace client
         {
             this._sock.NoDelay = true;
 
-            var buf = new byte[512];
-            this._tmpBuf = buf;
-            var n = await this.SockRecv(buf, 0, 2, true);
-            if (n != 2)
+            this._tmpBuf = new byte[512];
+            if (string.IsNullOrEmpty(this._fwdEndPoint))
             {
-                return;
+                var handshakingOK = await this.ProxyServerHandshake();
+                if (!handshakingOK)
+                {
+                    return;
+                }
             }
+            else
+            {
+                var dstInfo = this._fwdEndPoint.Split(':');
+                if (dstInfo.Length != 2)
+                {
+                    return;
+                }
 
-            var firstByte = (byte)buf[0];
-            var handshakingOK = false;
-            if (5 == firstByte)
-            {
-                handshakingOK = await this.Socks5Handshake();
-            }
-            else if (firstByte >= 65)
-            {
-                handshakingOK = await this.HttpHandshake();
-            }
-            if (!handshakingOK)
-            {
-                return;
+                this._dstHost = dstInfo[0];
+                this._dstPort = int.Parse(dstInfo[1]);
+                this.ProxyMode = ProxyModeEnum.PortForward;
             }
 
             var wsEndPoint = this._wsEndPoint;
@@ -78,6 +80,29 @@ namespace client
             }
             try { this._dstConn.Close(); }
             catch (Exception) { }
+        }
+
+        private async Task<bool> ProxyServerHandshake()
+        {
+            var buf = this._tmpBuf;
+            var n = await this.SockRecv(buf, 0, 2, true);
+            if (n != 2)
+            {
+                return false;
+            }
+
+            var result = false;
+            var firstByte = (byte)buf[0];
+            if (5 == firstByte)
+            {
+                result = await this.Socks5Handshake();
+            }
+            else if (firstByte >= 65 && firstByte <= 122)
+            {
+                result = await this.HttpHandshake();
+            }
+
+            return result;
         }
 
         private async Task RunProxy()
